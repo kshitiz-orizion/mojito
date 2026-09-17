@@ -1,17 +1,22 @@
 import { useRef } from 'react'
 import { useGSAP } from '@gsap/react'
-import { SplitText } from 'gsap/all'
+import { SplitText, ScrollTrigger } from 'gsap/all'
 import gsap from 'gsap'
 import { useMediaQuery } from 'react-responsive'
 
 const Hero = () => {
 
     const videoRef = useRef()
-    const videoTimelineRef = useRef()
+    const videoContainerRef = useRef()
 
-    const isMobile = useMediaQuery({maxWidth:767})
+    const isMobile = useMediaQuery({ maxWidth: 767 })
 
     useGSAP(() => {
+        ScrollTrigger.config({ ignoreMobileResize: true })
+
+        if (isMobile) {
+            ScrollTrigger.normalizeScroll(true)
+        }
         const heroSplit = new SplitText('.title', { type: 'chars,words' });
         const paragraphSplit = new SplitText('.subtitle', { type: 'lines' });
 
@@ -45,28 +50,44 @@ const Hero = () => {
             .to('.left-leaf', { y: -200 }, 0)
 
 
-    const startValue = isMobile ? 'top 50%' : 'center 60%'
-    const endValue = isMobile ? '200% top':'bottom top'
+        const startValue = isMobile ? 'top top' : 'top top'
+        const endValue = isMobile ? '150% top' : 'bottom top'
 
 
-    const tl = gsap.timeline({
-        scrollTrigger:{
-            trigger:'video',
-            start:startValue,
-            end:endValue,
-            scrub:true,
-            pin:true,
-        }
-    })
-
-    videoRef.current.onloadedmetadata = () =>{
-        tl.to(videoRef.current,{
-            currentTime:videoRef.current.duration
+        const tl = gsap.timeline({
+            scrollTrigger: {
+                trigger: videoContainerRef.current,
+                start: startValue,
+                end: endValue,
+                scrub: true,
+                pin: true,
+                pinType: 'transform',
+                anticipatePin: 1,
+                invalidateOnRefresh: true,
+                onUpdate: (self) => {
+                    const v = videoRef.current
+                    if (v && v.duration) {
+                        v.currentTime = v.duration * self.progress
+                    }
+                },// recompute start/end on refresh
+            }
         })
-    }
+
+        videoRef.current.onloadedmetadata = () => {
+            videoRef.current.pause()
+            videoRef.current.removeAttribute('autoplay')
+            tl.to(videoRef.current, {
+                currentTime: videoRef.current.duration
+            })
+            ScrollTrigger.refresh()
+        }
+        const handleResize = () => ScrollTrigger.refresh()
+        window.addEventListener('orientationchange', handleResize)
+
+        return () => window.removeEventListener('orientationchange', handleResize)
     }, [])
     return (
-        <div>
+        <div className='relative'>
             <section id="hero" className='noisy'>
                 <h1 className='title'>Mojito</h1>
                 <img src="/images/hero-left-leaf.png" alt="left-leaf" className='left-leaf' />
@@ -88,8 +109,8 @@ const Hero = () => {
                     </div>
                 </div>
             </section>
-            <div className='video absolute inset-0'>
-                <video ref={videoRef} src="/videos/output.mp4" muted playsInline preload='auto' />
+            <div className='video-container' ref={videoContainerRef}>
+                <video ref={videoRef} src="/videos/output.mp4" muted autoPlay playsInline preload='auto' />
             </div>
         </div>
     )
