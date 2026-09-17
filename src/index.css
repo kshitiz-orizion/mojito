@@ -130,6 +130,10 @@ body {
                 }
             }
         }
+
+        .video{
+            min-height: 100svh;
+        }
     }
 
     video {
